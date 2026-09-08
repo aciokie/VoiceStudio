@@ -294,8 +294,8 @@ def _sanitize_audio(audio_out):
 
 
 def _apply_effect_chain(audio_out, sample_rate, effect_preset, *, skip_mastering=False):
-    """Shared post-DSP for /generate: preset validation → mastering →
-    effect chain → loudness normalization.
+    """Shared post-DSP for /generate: neural vocoder → speech enhancement →
+    preset validation → mastering → effect chain → loudness normalization.
 
     ``skip_mastering`` honors a backend's ``applies_own_mastering`` flag
     (issue #312): studio engines (e.g. VoxCPM2's native 48 kHz output)
@@ -315,6 +315,22 @@ def _apply_effect_chain(audio_out, sample_rate, effect_preset, *, skip_mastering
     # silence here, before any DSP/encode touches the audio, so the output is
     # always a valid WAV. Covers the raw path too (it returns just below).
     audio_out = _sanitize_audio(audio_out)
+
+    # ── Stage 0: Neural vocoder upsampling + speech enhancement (#1432) ──────
+    # These run BEFORE mastering so they operate on the raw model output,
+    # giving the vocoder/enhancement network the cleanest signal to work with.
+    try:
+        from services.neural_vocoder import upsample_audio, enhance_speech
+        audio_out = upsample_audio(audio_out, source_sr=sample_rate, target_sr=48000)
+        # Update sample rate if upsampling occurred (may be > source_sr now)
+        sample_rate = getattr(audio_out, '_sample_rate', sample_rate)
+        audio_out = enhance_speech(audio_out, sample_rate=sample_rate)
+    except Exception as exc:
+        logger.warning(
+            "Neural vocoder/enhancement skipped: %s. "
+            "Set OMNIVOICE_NEURAL_VOCODER=1 or OMNIVOICE_SPEECH_ENHANCE=1 to enable.",
+            exc,
+        )
 
     preset = effect_preset or "broadcast"
     if preset not in EFFECT_PRESETS:
