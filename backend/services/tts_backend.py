@@ -2235,6 +2235,10 @@ _LAZY_REGISTRY: dict[str, tuple[str, str]] = {
     # 2026-07-02 (CPU, Apple Silicon; 22.05 kHz output). Gated behind
     # OMNIVOICE_CONFUCIUS4_TTS_DIR so it's inert until enabled.
     "confucius4-tts": ("engines.confucius4", "Confucius4Backend"),
+    # Issue #1432: Fish Speech S2-Pro — open-source LLM-based TTS with
+    # reference-based voice cloning, Apache-2.0. Connects to a local HTTP
+    # server (self-hosted or Docker). Gated behind FISH_SPEECH_SERVER_URL.
+    "fish_speech": ("engines.fish_speech", "FishSpeechBackend"),
 }
 
 
